@@ -1,4 +1,1 @@
-/.python-version
-/build/
-/dist/
-/*.egg-info/
+.idea

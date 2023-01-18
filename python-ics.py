@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import io
 import os
 import re
@@ -6,9 +6,12 @@ import sys
 from functools import partial, reduce
 from operator import add
 from dateutil import tz
+from datetime import datetime
 
 import icalendar
 
+# TODO: ICS calendars from URL
+# TODO: Repeating events
 
 datefmt = '%A, %d %B %Y, %H:%M %Z'
 
@@ -82,9 +85,21 @@ def format_date(x):
         date_or_time = x.dt
     return date_or_time.strftime(datefmt)
 
+def get_tz_date(x):
+    try:
+        date_or_time = x.dt.astimezone(tz.tzlocal())
+    except (AttributeError, ValueError):
+        date_or_time = x.dt
+    return date_or_time
+
 
 def get_event(e):
     unmailto = lambda x: re.compile('mailto:', re.IGNORECASE).sub('', x)
+
+    def filter_dt(e):
+        dt = get_tz_date(e['DTSTART'])
+        return dt.date() >= datetime.now().date()
+
     def get_header(e):
         name_map = {'SUMMARY': 'Subject',
                     'ORGANIZER': 'Organizer',
@@ -129,11 +144,13 @@ def get_event(e):
         else:
             return None
 
-    result = filter(bool, [get_header(e),
-                           get_participants(e),
-                           get_text_field(e, 'DESCRIPTION', 'Description'),
-                           get_text_field(e, 'COMMENT', 'Comment')])
-    return u'\n'.join(result)
+    if filter_dt(e):
+        result = filter(bool, [get_header(e),
+                               get_participants(e),
+                               get_text_field(e, 'COMMENT', 'Comment'),
+                               '\n'])
+        return u'\n'.join(result)
+    return None
 
 
 def main(args):
